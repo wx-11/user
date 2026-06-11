@@ -151,6 +151,8 @@
                 :countdown-text="countdownText"
                 :polling-active="pollingActive"
                 :format-money="formatMoney"
+                :format-discount-money="formatDiscountMoney"
+                :has-discount-amount="hasDiscountAmount"
               />
               <div v-if="paymentResult.expires_at"
                 class="theme-surface-soft border rounded-2xl p-4 text-xs theme-text-muted">
@@ -264,6 +266,12 @@
                   :class="hasDiscountAmount(order.promotion_discount_amount) ? 'text-rose-600 dark:text-rose-300' : 'theme-text-primary'"
                 >
                   {{ formatDiscountMoney(order.promotion_discount_amount, order.currency) }}
+                </div>
+              </div>
+              <div v-if="hasDiscountAmount(order.wholesale_discount_amount)" class="border border-emerald-200 bg-emerald-50/50 dark:border-emerald-800 dark:bg-emerald-950/30 rounded-xl p-3">
+                <div class="text-xs text-emerald-700 dark:text-emerald-400">{{ t('orderDetail.amountWholesaleDiscount') }}</div>
+                <div class="text-emerald-700 dark:text-emerald-400 font-mono mt-1">
+                  {{ formatDiscountMoney(order.wholesale_discount_amount, order.currency) }}
                 </div>
               </div>
             </div>
