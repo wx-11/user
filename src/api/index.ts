@@ -24,6 +24,12 @@ export type {
     AffiliateCommissionData,
     AffiliateWithdrawData,
     AffiliateWithdrawApplyPayload,
+    ResellerProfileSummaryData,
+    ResellerBalanceData,
+    ResellerLedgerData,
+    ResellerWithdrawData,
+    ResellerDashboardData,
+    ResellerWithdrawApplyPayload,
     CreatePaymentPayload,
     PaymentCreateResult,
     CaptchaPayload,
@@ -36,6 +42,7 @@ export { userProfileAPI } from './user'
 export { userOrderAPI, guestOrderAPI, paymentAPI } from './order'
 export { walletAPI, giftCardAPI } from './wallet'
 export { affiliateAPI } from './affiliate'
+export { resellerAPI } from './reseller'
 export { apiCredentialAPI } from './credential'
 
 // Default export for backward compatibility

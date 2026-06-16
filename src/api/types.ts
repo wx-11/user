@@ -188,6 +188,60 @@ export interface AffiliateWithdrawApplyPayload {
     account: string
 }
 
+export interface ResellerProfileSummaryData {
+    id: number
+    status: string
+    settlement_status: string
+    created_at: string
+}
+
+export interface ResellerBalanceData {
+    id: number
+    currency: string
+    status: string
+    available_amount: string
+    locked_amount: string
+    negative_amount: string
+    updated_at: string
+}
+
+export interface ResellerLedgerData {
+    id: number
+    order_id?: number
+    type: string
+    amount: string
+    currency: string
+    status: string
+    available_at?: string
+    withdraw_request_id?: number
+    created_at: string
+}
+
+export interface ResellerWithdrawData {
+    id: number
+    amount: string
+    currency: string
+    channel: string
+    account: string
+    status: string
+    reject_reason?: string
+    processed_at?: string
+    created_at: string
+}
+
+export interface ResellerDashboardData {
+    opened: boolean
+    profile?: ResellerProfileSummaryData
+    balances?: ResellerBalanceData[]
+}
+
+export interface ResellerWithdrawApplyPayload {
+    amount: string
+    currency: string
+    channel: string
+    account: string
+}
+
 export interface CreatePaymentPayload {
     order_no: string
     channel_id?: number

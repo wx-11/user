@@ -211,6 +211,13 @@ const router = createRouter({
             meta: { requiresUserAuth: true }
         },
         {
+            path: '/me/reseller',
+            name: 'personal-center-reseller',
+            component: () => import('../views/PersonalCenter.vue'),
+            props: { section: 'reseller' },
+            meta: { requiresUserAuth: true }
+        },
+        {
             path: '/orders/:order_no',
             name: 'order-detail',
             component: () => import('../views/OrderDetail.vue'),
