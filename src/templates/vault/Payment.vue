@@ -51,6 +51,16 @@
 
       <div class="mt-5 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
         <div>
+          <CryptoPaymentMethodSelector
+            v-if="hasPaymentMethods"
+            v-model="selectedCryptoPaymentMethodKey"
+            class="mb-4"
+            :methods="paymentMethods"
+            :loading="paymentMethodSelecting"
+            :has-address="Boolean(cryptoWalletAddress)"
+            :error="paymentMethodError"
+            @confirm="handleSelectCryptoPaymentMethod"
+          />
           <!-- QR -->
           <div v-if="showQRCode" class="flex flex-col items-center rounded-xl border bg-secondary p-[22px] text-center">
             <div class="mb-3 text-[13px] text-muted-foreground">{{ paymentGuideTitle }}</div>
@@ -69,7 +79,7 @@
           </div>
 
           <!-- 跳转链接 -->
-          <div v-else class="rounded-xl border bg-secondary p-[22px]">
+          <div v-else-if="showPayLink" class="rounded-xl border bg-secondary p-[22px]">
             <div class="mb-2.5 text-[13px] text-muted-foreground">{{ t('payment.openPayLink') }}</div>
             <Button size="sm" class="rounded-full" @click="handleOpenPayLink">{{ t('payment.openPayLink') }}</Button>
             <div v-if="openedPayWindow" class="mt-2.5 text-xs text-[color:var(--teal-strong)]">{{ payLinkOpenedTip }}</div>
@@ -79,6 +89,9 @@
               <span v-if="copied" class="text-xs text-[color:var(--teal-strong)]">{{ t('payment.copied') }}</span>
             </div>
             <div class="mt-2.5 break-all text-xs text-muted-foreground">{{ t('payment.payLinkLabel') }}：{{ paymentResult.pay_url }}</div>
+          </div>
+          <div v-else class="border-y py-8 text-center text-sm text-muted-foreground">
+            {{ t('payment.cryptoMethodRequiredTip') }}
           </div>
         </div>
 
@@ -263,6 +276,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import PaymentAmountBreakdown from '../../components/payment/PaymentAmountBreakdown.vue'
 import PaymentChannelSelector from '../../components/payment/PaymentChannelSelector.vue'
+import CryptoPaymentMethodSelector from '../../components/payment/CryptoPaymentMethodSelector.vue'
 import VaultCheckoutSteps from './components/VaultCheckoutSteps.vue'
 import { usePayment } from '../../composables/usePayment'
 
@@ -275,6 +289,7 @@ const {
   selectedChannel, selectedChannelName, cachedChannelName, resultChannelName, interactionLabel,
   paymentResultTitle, paymentGuideTitle, paymentGuideTip, showPayLink, showTelegramPayHint, payLinkOpenedTip,
   cryptoWalletAddress, cryptoPaymentDetails, hasCryptoPaymentDetails, qrUsingPayLinkFallback, showQRCode, qrImageUrl,
+  paymentMethods, hasPaymentMethods, paymentMethodSelecting, paymentMethodError, selectedCryptoPaymentMethodKey,
   orderExpired, orderCanceled, paymentAlert, countdownExpired, countdownText, showCountdown, showResultView, pollingActive, orderItems,
   feeRateDisplay, feeAmountDisplay, fixedFeeDisplay, payableAmountDisplay, walletBalanceDisplay,
   expectedWalletPaidDisplay, expectedOnlinePayDisplay, expectedOnlinePayCents, requiresOnlineChannel,
@@ -282,6 +297,7 @@ const {
   formatDate, statusLabel, formatMoney, hasDiscountAmount, formatDiscountMoney, getLocalizedText, orderItemSkuText, fulfillmentTypeLabelText,
   formatChannelFeeRate, formatChannelFixedFee,
   handleCopyPayLink, handleCopyWalletAddress, handleOpenPayLink, restoreCachedPayment, handleChangePaymentMethod,
+  handleSelectCryptoPaymentMethod,
   handlePayment, handleGuestAuthSubmit, handleRefresh,
 } = usePayment()
 </script>

@@ -7,6 +7,8 @@ import { useTelegramMiniAppStore } from '../stores/telegramMiniApp'
 import { copyText } from '../utils/clipboard'
 import { basisPointsToPercent, rateToBasisPoints } from '../utils/money'
 import type { BadgeTone } from '../utils/status'
+import type { CryptoPaymentMethod } from '../api/types'
+import { cryptoPaymentMethodKey, normalizeCryptoPaymentMethods, resolveCryptoPaymentMethodKey } from '../utils/cryptoPayment'
 
 /**
  * 充值订单详情逻辑（classic + vault 共用，含二维码渲染与轮询）。
@@ -18,6 +20,9 @@ export function useRechargeOrderDetail() {
 
   const loading = ref(true)
   const checkingPayment = ref(false)
+  const paymentMethodSelecting = ref(false)
+  const paymentMethodError = ref('')
+  const selectedCryptoPaymentMethodKey = ref('')
   const recharge = ref<any>(null)
   const payment = ref<any>(null)
   const pollTimer = ref<number | null>(null)
@@ -51,6 +56,11 @@ export function useRechargeOrderDetail() {
   const cryptoChainAmount = computed(() => String(payment.value?.chain_amount || '').trim())
   const cryptoChain = computed(() => String(payment.value?.chain || '').trim())
   const cryptoTokenID = computed(() => String(payment.value?.token_id || '').trim())
+  const paymentMethods = computed<CryptoPaymentMethod[]>(() => normalizeCryptoPaymentMethods(payment.value?.payment_methods))
+  const hasPaymentMethods = computed(() => paymentMethods.value.length > 0)
+  const selectedCryptoPaymentMethod = computed(() => paymentMethods.value.find((method) => (
+    cryptoPaymentMethodKey(method) === selectedCryptoPaymentMethodKey.value
+  )) || null)
   const cryptoTokenLabel = computed(() => {
     const tokenID = cryptoTokenID.value
     if (!tokenID) return ''
@@ -71,6 +81,13 @@ export function useRechargeOrderDetail() {
       eth: 'Ethereum',
       bsc: 'BNB Smart Chain',
       polygon: 'Polygon',
+      arbitrum: 'Arbitrum',
+      solana: 'Solana',
+      aptos: 'Aptos',
+      plasma: 'Plasma',
+      ton: 'TON',
+      'x-layer': 'X Layer',
+      xlayer: 'X Layer',
     }
     return labels[normalized] || value
   }
@@ -143,11 +160,18 @@ export function useRechargeOrderDetail() {
       interaction_mode: payload.interaction_mode,
       pay_url: payload.pay_url,
       qr_code: payload.qr_code,
+      wallet_address: payload.wallet_address,
+      chain_amount: payload.chain_amount,
+      chain: payload.chain,
+      token_id: payload.token_id,
+      payment_methods: payload.payment_methods,
+      selected_currency: payload.selected_currency,
+      selected_network: payload.selected_network,
       expires_at: payload.expires_at,
       status: payload.status,
     } : undefined)
     if (paymentData) {
-      payment.value = paymentData
+      payment.value = { ...payment.value, ...paymentData }
     }
   }
 
@@ -198,6 +222,29 @@ export function useRechargeOrderDetail() {
       console.error('Failed to check payment:', err)
     } finally {
       checkingPayment.value = false
+    }
+  }
+
+  const selectCryptoPaymentMethod = async () => {
+    const paymentID = Number(payment.value?.id || payment.value?.payment_id || 0)
+    const method = selectedCryptoPaymentMethod.value
+    if (!Number.isFinite(paymentID) || paymentID <= 0 || !method) {
+      paymentMethodError.value = t('payment.cryptoMethodRequired')
+      return
+    }
+    paymentMethodSelecting.value = true
+    paymentMethodError.value = ''
+    try {
+      const response = await walletAPI.selectPaymentMethod(paymentID, {
+        currency: method.currency,
+        network: method.network,
+      })
+      syncPayload(response.data.data || {})
+      walletAddressCopied.value = false
+    } catch (err: any) {
+      paymentMethodError.value = err?.message || t('payment.cryptoMethodFailed')
+    } finally {
+      paymentMethodSelecting.value = false
     }
   }
 
@@ -278,6 +325,20 @@ export function useRechargeOrderDetail() {
 
   watch(() => qrDisplayContent.value, () => { void renderQRCodeImage() }, { immediate: true })
 
+  watch(
+    () => [paymentMethods.value, payment.value?.selected_currency, payment.value?.selected_network] as const,
+    ([methods, selectedCurrency, selectedNetwork]) => {
+      paymentMethodError.value = ''
+      selectedCryptoPaymentMethodKey.value = resolveCryptoPaymentMethodKey(
+        methods,
+        selectedCurrency,
+        selectedNetwork,
+        selectedCryptoPaymentMethodKey.value,
+      )
+    },
+    { immediate: true }
+  )
+
   onMounted(async () => {
     await loadDetail()
     if (isPending.value) {
@@ -300,6 +361,9 @@ export function useRechargeOrderDetail() {
   return {
     loading,
     checkingPayment,
+    paymentMethodSelecting,
+    paymentMethodError,
+    selectedCryptoPaymentMethodKey,
     recharge,
     payment,
     walletAddressCopied,
@@ -312,6 +376,8 @@ export function useRechargeOrderDetail() {
     cryptoWalletAddress,
     cryptoPaymentDetails,
     hasCryptoPaymentDetails,
+    paymentMethods,
+    hasPaymentMethods,
     feeRateDisplay,
     rechargeStatusText,
     rechargeStatusVariant,
@@ -322,5 +388,6 @@ export function useRechargeOrderDetail() {
     checkPayment,
     handleOpenPayLink,
     handleCopyWalletAddress,
+    selectCryptoPaymentMethod,
   }
 }

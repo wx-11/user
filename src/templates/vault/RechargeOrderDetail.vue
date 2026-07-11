@@ -88,7 +88,17 @@
       <section v-if="isPending" class="mb-[18px] rounded-xl border bg-card p-[22px]">
         <h2 class="mb-4 text-lg font-bold">{{ t('rechargeOrder.paymentTitle') }}</h2>
         <div class="mb-3.5 text-[13px] text-muted-foreground">{{ t('personalCenter.wallet.pendingHint') }}</div>
-        <div class="grid gap-[18px] md:grid-cols-2">
+        <CryptoPaymentMethodSelector
+          v-if="hasPaymentMethods"
+          v-model="selectedCryptoPaymentMethodKey"
+          class="mb-5"
+          :methods="paymentMethods"
+          :loading="paymentMethodSelecting"
+          :has-address="Boolean(cryptoWalletAddress)"
+          :error="paymentMethodError"
+          @confirm="selectCryptoPaymentMethod"
+        />
+        <div class="grid gap-[18px]" :class="showQRCode ? 'md:grid-cols-2' : 'md:grid-cols-1'">
           <div v-if="showQRCode" class="flex flex-col items-center rounded-xl border bg-secondary p-5 text-center">
             <div class="mb-3 text-[13px] text-muted-foreground">{{ t('payment.qrTitle') }}</div>
             <div class="aspect-square w-full max-w-[220px] overflow-hidden rounded-md bg-white p-2"><img :src="qrImageUrl" alt="Recharge QR" class="h-full w-full object-contain" /></div>
@@ -131,6 +141,7 @@ import { useI18n } from 'vue-i18n'
 import { AlertCircle, CheckCircle2 } from 'lucide-vue-next'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import CryptoPaymentMethodSelector from '../../components/payment/CryptoPaymentMethodSelector.vue'
 import { useRechargeOrderDetail } from '../../composables/useRechargeOrderDetail'
 
 const { t } = useI18n()
@@ -139,7 +150,9 @@ const {
   loading, checkingPayment, recharge, payment, walletAddressCopied, qrImageUrl,
   isPending, payLink, showTelegramPayHint, qrUsingPayLinkFallback, showQRCode,
   cryptoWalletAddress, cryptoPaymentDetails, hasCryptoPaymentDetails, feeRateDisplay,
+  paymentMethods, hasPaymentMethods, paymentMethodSelecting, paymentMethodError, selectedCryptoPaymentMethodKey,
   rechargeStatusText, rechargeStatusVariant, formatMoney, formatDate,
   loadDetail, checkPayment, handleOpenPayLink, handleCopyWalletAddress,
+  selectCryptoPaymentMethod,
 } = useRechargeOrderDetail()
 </script>

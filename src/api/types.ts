@@ -129,8 +129,28 @@ export interface WalletRechargeResult {
     chain_amount?: string
     chain?: string
     token_id?: string
+    payment_methods?: CryptoPaymentMethod[]
+    selected_currency?: string
+    selected_network?: string
     expires_at?: string
     status?: string
+}
+
+export interface CryptoPaymentMethod {
+    amount?: string
+    actual_amount?: string
+    fiat?: string
+    exchange_rate?: string
+    currency: string
+    network: string
+    token_net_name?: string
+    token_custom_name?: string
+    is_popular?: boolean
+}
+
+export interface SelectCryptoPaymentMethodPayload {
+    currency: string
+    network: string
 }
 
 export interface GiftCardData {
@@ -472,6 +492,9 @@ export interface PaymentCreateResult {
     chain_amount?: string
     chain?: string
     token_id?: string
+    payment_methods?: CryptoPaymentMethod[]
+    selected_currency?: string
+    selected_network?: string
     expires_at?: string
 }
 

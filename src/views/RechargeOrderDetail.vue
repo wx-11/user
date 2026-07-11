@@ -94,7 +94,17 @@
           <div v-if="isPending" class="mb-3 text-xs text-muted-foreground">
             {{ t('personalCenter.wallet.pendingHint') }}
           </div>
-          <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+          <CryptoPaymentMethodSelector
+            v-if="hasPaymentMethods"
+            v-model="selectedCryptoPaymentMethodKey"
+            class="mb-5"
+            :methods="paymentMethods"
+            :loading="paymentMethodSelecting"
+            :has-address="Boolean(cryptoWalletAddress)"
+            :error="paymentMethodError"
+            @confirm="selectCryptoPaymentMethod"
+          />
+          <div class="grid grid-cols-1 gap-6" :class="showQRCode ? 'md:grid-cols-2' : 'md:grid-cols-1'">
             <div v-if="showQRCode" class="rounded-xl border p-4">
               <div class="mb-3 text-sm font-semibold text-foreground">{{ t('payment.qrTitle') }}</div>
               <div class="flex items-center justify-center">
@@ -156,6 +166,7 @@ import { useI18n } from 'vue-i18n'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import EmptyState from '../components/EmptyState.vue'
+import CryptoPaymentMethodSelector from '../components/payment/CryptoPaymentMethodSelector.vue'
 import { useRechargeOrderDetail } from '../composables/useRechargeOrderDetail'
 
 const { t } = useI18n()
@@ -164,7 +175,9 @@ const {
   loading, checkingPayment, recharge, payment, walletAddressCopied, qrImageUrl,
   isPending, payLink, showTelegramPayHint, qrUsingPayLinkFallback, showQRCode,
   cryptoWalletAddress, cryptoPaymentDetails, hasCryptoPaymentDetails, feeRateDisplay,
+  paymentMethods, hasPaymentMethods, paymentMethodSelecting, paymentMethodError, selectedCryptoPaymentMethodKey,
   rechargeStatusText, rechargeStatusVariant, formatMoney, formatDate,
   loadDetail, checkPayment, handleOpenPayLink, handleCopyWalletAddress,
+  selectCryptoPaymentMethod,
 } = useRechargeOrderDetail()
 </script>

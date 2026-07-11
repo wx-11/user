@@ -1,5 +1,5 @@
 import { userApi } from './client'
-import type { CreatePaymentPayload } from './types'
+import type { CreatePaymentPayload, SelectCryptoPaymentMethodPayload } from './types'
 
 export const userOrderAPI = {
     preview: (data: any) => userApi.post('/orders/preview', data),
@@ -21,12 +21,15 @@ export const guestOrderAPI = {
     detail: (orderNo: string, params: any, options?: any) => userApi.get(`/guest/orders/${encodeURIComponent(orderNo)}`, { params, ...(options || {}) }),
     downloadFulfillment: (orderNo: string, params: any) => userApi.get(`/guest/orders/${encodeURIComponent(orderNo)}/fulfillment/download`, { params, blob: true }),
     createPayment: (data: any) => userApi.post('/guest/payments', data),
+    selectPaymentMethod: (id: number, data: SelectCryptoPaymentMethodPayload & { email: string; order_password: string }) =>
+        userApi.post(`/guest/payments/${id}/method`, data),
     capturePayment: (id: number, data: any) => userApi.post(`/guest/payments/${id}/capture`, data),
     latestPayment: (params: any) => userApi.get('/guest/payments/latest', { params, silentBusinessError: true }),
 }
 
 export const paymentAPI = {
     create: (data: CreatePaymentPayload) => userApi.post('/payments', data),
+    selectMethod: (id: number, data: SelectCryptoPaymentMethodPayload) => userApi.post(`/payments/${id}/method`, data),
     capture: (id: number) => userApi.post(`/payments/${id}/capture`),
     latest: (params: any) => userApi.get('/payments/latest', { params, silentBusinessError: true }),
 }

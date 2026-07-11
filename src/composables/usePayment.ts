@@ -18,6 +18,8 @@ import {
 } from '../utils/paymentResumePolicy'
 import QRCode from 'qrcode'
 import { type PageAlert } from '../utils/alerts'
+import type { CryptoPaymentMethod } from '../api/types'
+import { cryptoPaymentMethodKey, normalizeCryptoPaymentMethods, resolveCryptoPaymentMethodKey } from '../utils/cryptoPayment'
 
 /**
  * 支付页共享逻辑（classic + vault 双模板共用）。
@@ -38,6 +40,9 @@ export function usePayment() {
   const selectedChannelId = ref<number | null>(null)
   const copied = ref(false)
   const walletAddressCopied = ref(false)
+  const paymentMethodSelecting = ref(false)
+  const paymentMethodError = ref('')
+  const selectedCryptoPaymentMethodKey = ref('')
   const capturing = ref(false)
   const redirecting = ref(false)
   const redirected = ref(false)
@@ -176,6 +181,14 @@ export function usePayment() {
     return Number.isFinite(paymentID) && paymentID > 0 ? paymentID : 0
   }
 
+  const hasPaymentDestination = (value: any) => {
+    return Boolean(
+      String(value?.pay_url || '').trim() ||
+      String(value?.qr_code || '').trim() ||
+      (Array.isArray(value?.payment_methods) && value.payment_methods.length > 0)
+    )
+  }
+
   const paymentProviderType = computed(() => String(paymentResult.value?.provider_type || resultChannel.value?.provider_type || '').toLowerCase())
 
   const paymentChannelType = computed(() => String(paymentResult.value?.channel_type || resultChannel.value?.channel_type || '').toLowerCase())
@@ -191,7 +204,6 @@ export function usePayment() {
   const interactionMode = computed(() => String(paymentResult.value?.interaction_mode || '').toLowerCase())
   const paymentResultTitle = computed(() => interactionMode.value === 'redirect' ? t('payment.resultRedirectTitle') : t('payment.resultTitle'))
   const paymentGuideTitle = computed(() => interactionMode.value === 'redirect' ? t('payment.redirectTitle') : t('payment.qrTitle'))
-  const paymentGuideTip = computed(() => interactionMode.value === 'redirect' ? t('payment.redirectTip') : t('payment.qrTip'))
 
   const showPayLink = computed(() => {
     return interactionMode.value === 'redirect' || Boolean(payLink.value)
@@ -208,6 +220,16 @@ export function usePayment() {
   const cryptoChainAmount = computed(() => String(paymentResult.value?.chain_amount || '').trim())
   const cryptoChain = computed(() => String(paymentResult.value?.chain || '').trim())
   const cryptoTokenID = computed(() => String(paymentResult.value?.token_id || '').trim())
+  const paymentMethods = computed<CryptoPaymentMethod[]>(() => normalizeCryptoPaymentMethods(paymentResult.value?.payment_methods))
+  const hasPaymentMethods = computed(() => paymentMethods.value.length > 0)
+  const paymentMethodSelectionRequired = computed(() => hasPaymentMethods.value && !qrCodeContent.value)
+  const selectedCryptoPaymentMethod = computed(() => paymentMethods.value.find((method) => (
+    cryptoPaymentMethodKey(method) === selectedCryptoPaymentMethodKey.value
+  )) || null)
+  const paymentGuideTip = computed(() => {
+    if (paymentMethodSelectionRequired.value) return t('payment.cryptoMethodRequiredTip')
+    return interactionMode.value === 'redirect' ? t('payment.redirectTip') : t('payment.qrTip')
+  })
   const cryptoTokenLabel = computed(() => {
     const tokenID = cryptoTokenID.value
     if (!tokenID) return ''
@@ -228,6 +250,13 @@ export function usePayment() {
       eth: 'Ethereum',
       bsc: 'BNB Smart Chain',
       polygon: 'Polygon',
+      arbitrum: 'Arbitrum',
+      solana: 'Solana',
+      aptos: 'Aptos',
+      plasma: 'Plasma',
+      ton: 'TON',
+      'x-layer': 'X Layer',
+      xlayer: 'X Layer',
     }
     return labels[normalized] || value
   }
@@ -273,6 +302,20 @@ export function usePayment() {
   const qrDisplayContent = computed(() => qrCodeContent.value || qrFallbackContent.value)
   const qrUsingPayLinkFallback = computed(() => Boolean(!qrCodeContent.value && qrFallbackContent.value))
   const showQRCode = computed(() => interactionMode.value === 'qr' && Boolean(qrDisplayContent.value))
+
+  watch(
+    () => [paymentMethods.value, paymentResult.value?.selected_currency, paymentResult.value?.selected_network] as const,
+    ([methods, selectedCurrency, selectedNetwork]) => {
+      paymentMethodError.value = ''
+      selectedCryptoPaymentMethodKey.value = resolveCryptoPaymentMethodKey(
+        methods,
+        selectedCurrency,
+        selectedNetwork,
+        selectedCryptoPaymentMethodKey.value,
+      )
+    },
+    { immediate: true }
+  )
 
   const qrImageUrl = ref('')
   const qrRenderVersion = ref(0)
@@ -808,7 +851,7 @@ export function usePayment() {
         response = await paymentAPI.latest({ order_no: orderNoResolved.value })
       }
       const data = response.data.data
-      if (data && (data.pay_url || data.qr_code)) {
+      if (data && hasPaymentDestination(data)) {
         cachedPayment.value = data
         paymentResult.value = data
         selectedChannelId.value = data.channel_id || null
@@ -1005,7 +1048,7 @@ export function usePayment() {
           channel_id: selectedChannelId.value,
         })
         paymentResult.value = response.data.data
-        if (paymentResult.value?.pay_url || paymentResult.value?.qr_code) {
+        if (hasPaymentDestination(paymentResult.value)) {
           cachedPayment.value = paymentResult.value
         }
         openedPayWindow.value = false
@@ -1036,7 +1079,7 @@ export function usePayment() {
           return
         }
         paymentResult.value = created
-        if (paymentResult.value?.pay_url || paymentResult.value?.qr_code) {
+        if (hasPaymentDestination(paymentResult.value)) {
           cachedPayment.value = paymentResult.value
         }
         openedPayWindow.value = false
@@ -1056,6 +1099,37 @@ export function usePayment() {
   }
 
   const handlePayment = debounceAsync(performPayment, 200)
+
+  const selectCryptoPaymentMethod = async () => {
+    const paymentID = currentPaymentID()
+    const method = selectedCryptoPaymentMethod.value
+    if (!paymentID || !method) {
+      paymentMethodError.value = t('payment.cryptoMethodRequired')
+      return
+    }
+    paymentMethodSelecting.value = true
+    paymentMethodError.value = ''
+    try {
+      const selection = { currency: method.currency, network: method.network }
+      const response = isGuest.value
+        ? await guestOrderAPI.selectPaymentMethod(paymentID, {
+            ...selection,
+            email: guestAuth.value.email,
+            order_password: guestAuth.value.order_password,
+          })
+        : await paymentAPI.selectMethod(paymentID, selection)
+      const updated = response.data.data || {}
+      paymentResult.value = { ...paymentResult.value, ...updated }
+      cachedPayment.value = paymentResult.value
+      walletAddressCopied.value = false
+    } catch (err: any) {
+      paymentMethodError.value = err?.message || t('payment.cryptoMethodFailed')
+    } finally {
+      paymentMethodSelecting.value = false
+    }
+  }
+
+  const handleSelectCryptoPaymentMethod = debounceAsync(selectCryptoPaymentMethod, 200)
 
   const shouldRedirect = (status?: string) => {
     if (!status) return false
@@ -1356,6 +1430,7 @@ export function usePayment() {
     }
     debouncedLoadOrder.cancel()
     debouncedLoadOrderPaymentChannels.cancel()
+    handleSelectCryptoPaymentMethod.cancel()
   })
 
   const handleGuestAuthSubmit = async () => {
@@ -1389,6 +1464,9 @@ export function usePayment() {
     selectedChannelId,
     copied,
     walletAddressCopied,
+    paymentMethodSelecting,
+    paymentMethodError,
+    selectedCryptoPaymentMethodKey,
     openedPayWindow,
     cachedPayment,
     guestAuth,
@@ -1422,6 +1500,9 @@ export function usePayment() {
     qrUsingPayLinkFallback,
     showQRCode,
     qrImageUrl,
+    paymentMethods,
+    hasPaymentMethods,
+    paymentMethodSelectionRequired,
     // status
     orderExpired,
     orderCanceled,
@@ -1462,6 +1543,7 @@ export function usePayment() {
     // actions
     handleCopyPayLink,
     handleCopyWalletAddress,
+    handleSelectCryptoPaymentMethod,
     handleOpenPayLink,
     restoreCachedPayment,
     handleChangePaymentMethod,

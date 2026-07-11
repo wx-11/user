@@ -1,4 +1,5 @@
 import { userApi } from './client'
+import type { SelectCryptoPaymentMethodPayload } from './types'
 import type {
     WalletRechargePayload,
     CaptchaPayload,
@@ -15,6 +16,8 @@ export const walletAPI = {
         userApi.get(`/wallet/recharges/${encodeURIComponent(rechargeNo)}`),
     captureRechargePayment: (paymentID: number) =>
         userApi.post(`/wallet/recharge/payments/${paymentID}/capture`),
+    selectPaymentMethod: (paymentID: number, data: SelectCryptoPaymentMethodPayload) =>
+        userApi.post(`/payments/${paymentID}/method`, data),
 }
 
 export const giftCardAPI = {
